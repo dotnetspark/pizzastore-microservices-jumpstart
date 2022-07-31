@@ -1,0 +1,22 @@
+@hostname = https://localhost:7134
+
+### Get all pizza specials
+get {{hostname}}
+Accept: application/json
+
+### Get a pizza special by Id
+get {{hostname}}/2cbbc434-8cfb-4edf-8439-a04a97154698
+Accept: application/json
+
+### Create a pizza special
+post {{hostname}}
+Content-Type: application/json
+
+{
+    "name": "my next pizza special",
+    "baseprice": 5.99,
+    "description": "testing posting a pizza special"
+}
+
+### Delete a pizza special
+delete {{hostname}}/2cbbc434-8cfb-4edf-8439-a04a97154698
