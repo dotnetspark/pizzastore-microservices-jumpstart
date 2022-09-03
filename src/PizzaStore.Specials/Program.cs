@@ -1,25 +1,73 @@
 using AutoMapper;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.OpenApi;
+using Microsoft.Identity.Web;
+using Microsoft.Identity.Web.Resource;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+var configuration = builder.Configuration;
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddMicrosoftIdentityWebApi(configuration.GetSection("AzureAd"));
+builder.Services.AddAuthorization();
+
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddAutoMapper(typeof(Program));
+builder.Services.AddSwaggerGen(c => 
+{
+    c.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
+    {
+        Description = "OAuth2.0 Auth Code with PKCE",
+        Name = "oauth2",
+        Type = SecuritySchemeType.OAuth2,
+        Flows = new OpenApiOAuthFlows
+        {
+            AuthorizationCode = new OpenApiOAuthFlow
+            {
+                AuthorizationUrl = new Uri(configuration.GetValue<string>("AuthorizationUrl")),
+                TokenUrl = new Uri(configuration.GetValue<string>("TokenUrl")),
+                Scopes = new Dictionary<string, string>
+                {
+                    { "https://blazzingpizza.onmicrosoft.com/pizzaspecials-api/read", "Read access to pizza specials"},
+                    { "https://blazzingpizza.onmicrosoft.com/pizzaspecials-api/write", "Write access to pizza specials"},
+                }
+            }
+        }
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "oauth2" }
+            },
+            new[]
+            {
+                "https://blazzingpizza.onmicrosoft.com/pizzaspecials-api/read",
+                "https://blazzingpizza.onmicrosoft.com/pizzaspecials-api/write"
+            }
+        }
+    });
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c => 
+    {
+        c.OAuthClientId(configuration.GetValue<string>("SwaggerClientId"));
+        c.OAuthUsePkce();
+        c.OAuthScopeSeparator(" ");
+    });
 }
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 var specials = new List<PizzaSpecial>
 {
@@ -33,14 +81,29 @@ var specials = new List<PizzaSpecial>
     new PizzaSpecial(Guid.NewGuid(),"Margherita",9.99m,"Traditional Italian pizza with tomatoes and basil","img/pizzas/margherita.jpg")
 };
 
-app.MapGet("/", () => specials)
-.WithName("GetAll")
-.WithOpenApi()
-.Produces<OkResult>();
-
-app.MapGet("/{id}", (Guid id) =>
+app.MapGet("/", (HttpContext context) => 
 {
-    if (Guid.Empty == id) return Results.NotFound();
+    context.VerifyUserHasAnyAcceptedScope("read");
+
+    return Results.Ok(specials);
+})
+.WithName("GetAll")
+.WithOpenApi(o =>
+{
+    o.Summary = "Get all pizza special";
+    o.Description = "Returns all pizza specials";
+    o.Responses["200"].Description = "Collection of pizza specials";
+    o.Responses.Add(StatusCodes.Status401Unauthorized.ToString(), new OpenApiResponse { Description = "Unauthorize access to this resource" });
+
+    return o;
+})
+.RequireAuthorization();
+
+app.MapGet("/{id:Guid}", (HttpContext context, Guid id) =>
+{
+    context.VerifyUserHasAnyAcceptedScope("read");
+
+    if (id == Guid.Empty) return Results.NotFound();
 
     var special = specials.FirstOrDefault(s => s.Id == id);
     if (special is null) return Results.NotFound();
@@ -48,25 +111,34 @@ app.MapGet("/{id}", (Guid id) =>
     return Results.Ok(special);
 })
 .WithName("GetById")
-.WithDescription("Get a pizza special by its unique identifier")
-.WithOpenApi()
-.Produces<NotFoundResult>()
-.Produces<OkResult>();
-
-app.MapPost("/", async ([FromServices] IMapper mapper, CreatePizzaSpecial contract) =>
+.WithOpenApi(o =>
 {
-    var special = mapper.Map<PizzaSpecial>(contract);
-    specials.Add(special);
+    o.Summary = "Remove pizza special";
+    o.Description = "Get a pizza special by its unique identifier";
+    o.Responses["200"].Description = "A pizza special";
+    o.Responses.Add(StatusCodes.Status401Unauthorized.ToString(), new OpenApiResponse { Description = "Unauthorize access to this resource" });
+    o.Responses.Add(StatusCodes.Status404NotFound.ToString(), new OpenApiResponse { Description = "The given id could not be found" });
 
-    return Results.Created($"/{special.Id}", mapper.Map<PizzaSpecialCreated>(special));
+    return o;
 })
-.WithName("Create")
-.WithDescription("Creates a pizza special")
-.WithOpenApi()
-.Produces<CreatedResult>();
+.RequireAuthorization();
 
-app.MapDelete("/{id}", (Guid id) =>
+//app.MapPost("/", async ([FromServices] IMapper mapper, CreatePizzaSpecial contract) =>
+//{
+//    var special = mapper.Map<PizzaSpecial>(contract);
+//    specials.Add(special);
+
+//    return Results.Created($"/{special.Id}", mapper.Map<PizzaSpecialCreated>(special));
+//})
+//.WithName("Create")
+//.WithDescription("Creates a pizza special")
+//.WithOpenApi()
+//.Produces<CreatedResult>();
+
+app.MapDelete("/specials/{id:Guid}", (HttpContext context, Guid id) =>
 {
+    context.VerifyUserHasAnyAcceptedScope("write");
+
     if (id == Guid.Empty) return Results.NotFound();
 
     var pizzaSpecial = specials.FirstOrDefault(s => s.Id == id);
@@ -74,12 +146,19 @@ app.MapDelete("/{id}", (Guid id) =>
 
     specials.Remove(pizzaSpecial);
 
-    return Results.NoContent();
+    return Results.Ok();
 })
-.WithName("Remove")
-.WithDescription("Removes a pizza special by a given id")
-.WithOpenApi()
-.Produces<NotFoundResult>()
-.Produces<NoContentResult>();
+.WithOpenApi(o =>
+{
+    o.Summary = "Remove pizza special";
+    o.Description = "Removes a pizza special by its unique identifier";
+    o.Responses["200"].Description = "Pizza special successfully removed";
+    o.Responses.Add(StatusCodes.Status401Unauthorized.ToString(), new OpenApiResponse { Description = "Unauthorize access to this resource" });
+    o.Responses.Add(StatusCodes.Status403Forbidden.ToString(), new OpenApiResponse { Description = "Forbidden access to this resource" });
+    o.Responses.Add(StatusCodes.Status404NotFound.ToString(), new OpenApiResponse { Description = "The given id could not be found" });
+
+    return o;
+})
+.RequireAuthorization();
 
 app.Run();
