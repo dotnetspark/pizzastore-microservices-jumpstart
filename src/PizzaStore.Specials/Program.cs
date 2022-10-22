@@ -24,8 +24,8 @@ builder.Services.AddSwaggerGen(c =>
         {
             AuthorizationCode = new OpenApiOAuthFlow
             {
-                AuthorizationUrl = new Uri(configuration.GetValue<string>("AuthorizationUrl")),
-                TokenUrl = new Uri(configuration.GetValue<string>("TokenUrl")),
+                AuthorizationUrl = new Uri(configuration.GetValue<string>("AuthorizationUrl")!),
+                TokenUrl = new Uri(configuration.GetValue<string>("TokenUrl")!),
                 Scopes = new Dictionary<string, string>
                 {
                     { "https://blazzingpizza.onmicrosoft.com/pizzaspecials-api/read", "Read access to pizza specials"},
@@ -97,7 +97,8 @@ app.MapGet("/", (HttpContext context) =>
 
     return o;
 })
-.RequireAuthorization();
+.RequireAuthorization()
+;
 
 app.MapGet("/{id:Guid}", (HttpContext context, Guid id) =>
 {

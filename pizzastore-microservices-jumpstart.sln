@@ -1,0 +1,35 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30114.105
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{77BD4B4E-6823-47EA-9ABD-2D58BFED7DA7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PizzaStore.Specials", "src\PizzaStore.Specials\PizzaStore.Specials.csproj", "{C315E3E4-537B-4612-8945-011CC9A299A0}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1CB8A880-A378-4197-971D-63F16709CBF5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1CB8A880-A378-4197-971D-63F16709CBF5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1CB8A880-A378-4197-971D-63F16709CBF5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1CB8A880-A378-4197-971D-63F16709CBF5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{13FA625C-4372-4FCB-8119-9602F3864014}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{13FA625C-4372-4FCB-8119-9602F3864014}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{13FA625C-4372-4FCB-8119-9602F3864014}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{13FA625C-4372-4FCB-8119-9602F3864014}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C315E3E4-537B-4612-8945-011CC9A299A0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C315E3E4-537B-4612-8945-011CC9A299A0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C315E3E4-537B-4612-8945-011CC9A299A0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C315E3E4-537B-4612-8945-011CC9A299A0}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{C315E3E4-537B-4612-8945-011CC9A299A0} = {77BD4B4E-6823-47EA-9ABD-2D58BFED7DA7}
+	EndGlobalSection
+EndGlobal
