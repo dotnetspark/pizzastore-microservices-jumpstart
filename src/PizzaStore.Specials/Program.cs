@@ -1,6 +1,4 @@
-using AutoMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.Resource;
 using Microsoft.OpenApi.Models;
@@ -24,8 +22,8 @@ builder.Services.AddSwaggerGen(c =>
         {
             AuthorizationCode = new OpenApiOAuthFlow
             {
-                AuthorizationUrl = new Uri(configuration.GetValue<string>("AuthorizationUrl")),
-                TokenUrl = new Uri(configuration.GetValue<string>("TokenUrl")),
+                AuthorizationUrl = new Uri(configuration.GetValue<string>("AuthorizationUrl")!),
+                TokenUrl = new Uri(configuration.GetValue<string>("TokenUrl")!),
                 Scopes = new Dictionary<string, string>
                 {
                     { "https://blazzingpizza.onmicrosoft.com/pizzaspecials-api/read", "Read access to pizza specials"},
@@ -81,12 +79,7 @@ var specials = new List<PizzaSpecial>
     new PizzaSpecial(Guid.NewGuid(),"Margherita",9.99m,"Traditional Italian pizza with tomatoes and basil","img/pizzas/margherita.jpg")
 };
 
-app.MapGet("/", (HttpContext context) => 
-{
-    context.VerifyUserHasAnyAcceptedScope("read");
-
-    return Results.Ok(specials);
-})
+app.MapGet("/", (HttpContext context) => specials)
 .WithName("GetAll")
 .WithOpenApi(o =>
 {
@@ -97,12 +90,11 @@ app.MapGet("/", (HttpContext context) =>
 
     return o;
 })
-.RequireAuthorization();
+.RequireAuthorization()
+.AddEndpointFilter<ValidateReadOnlyScopesFilter>();
 
 app.MapGet("/{id:Guid}", (HttpContext context, Guid id) =>
 {
-    context.VerifyUserHasAnyAcceptedScope("read");
-
     if (id == Guid.Empty) return Results.NotFound();
 
     var special = specials.FirstOrDefault(s => s.Id == id);
@@ -121,7 +113,8 @@ app.MapGet("/{id:Guid}", (HttpContext context, Guid id) =>
 
     return o;
 })
-.RequireAuthorization();
+.RequireAuthorization()
+.AddEndpointFilter<ValidateReadOnlyScopesFilter>();
 
 //app.MapPost("/", async ([FromServices] IMapper mapper, CreatePizzaSpecial contract) =>
 //{
@@ -137,8 +130,6 @@ app.MapGet("/{id:Guid}", (HttpContext context, Guid id) =>
 
 app.MapDelete("/specials/{id:Guid}", (HttpContext context, Guid id) =>
 {
-    context.VerifyUserHasAnyAcceptedScope("write");
-
     if (id == Guid.Empty) return Results.NotFound();
 
     var pizzaSpecial = specials.FirstOrDefault(s => s.Id == id);
@@ -159,6 +150,45 @@ app.MapDelete("/specials/{id:Guid}", (HttpContext context, Guid id) =>
 
     return o;
 })
-.RequireAuthorization();
+.RequireAuthorization()
+.AddEndpointFilter<ValidateWriteOnlyScopesFilter>();
 
 app.Run();
+
+public class ValidateReadOnlyScopesFilter : IEndpointFilter
+{
+    private ILogger _logger;
+
+    public ValidateReadOnlyScopesFilter(ILoggerFactory loggerFactory)
+    {
+        _logger = loggerFactory.CreateLogger<ValidateReadOnlyScopesFilter>();
+    }
+
+    public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    {
+        _logger.LogInformation("Validating read only scopes");
+        ScopesRequiredHttpContextExtensions.VerifyUserHasAnyAcceptedScope(context.HttpContext, "read");
+        _logger.LogInformation("Read only scopes valid");
+
+        return await next(context);
+    }
+}
+
+public class ValidateWriteOnlyScopesFilter : IEndpointFilter
+{
+    private ILogger _logger;
+
+    public ValidateWriteOnlyScopesFilter(ILoggerFactory loggerFactory)
+    {
+        _logger = loggerFactory.CreateLogger<ValidateWriteOnlyScopesFilter>();
+    }
+
+    public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    {
+        _logger.LogInformation("Validating write only scopes");
+        ScopesRequiredHttpContextExtensions.VerifyUserHasAnyAcceptedScope(context.HttpContext, "write");
+        _logger.LogInformation("Write only scopes valid");
+
+        return await next(context);
+    }
+}
