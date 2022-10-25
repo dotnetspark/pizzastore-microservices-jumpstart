@@ -12,6 +12,5 @@ public class PizzaSpecialMapperProfile : Profile
             contract.Description,
             contract.ImageUrl
         ));
-        CreateMap<PizzaSpecial, PizzaSpecialCreated>();
     }
 }
